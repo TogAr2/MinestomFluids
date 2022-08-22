@@ -1,0 +1,26 @@
+plugins {
+    id 'java'
+}
+
+sourceCompatibility = 17
+
+group 'io.github.togar2'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+
+    maven { url 'https://repo.spongepowered.org/maven' }
+    maven { url 'https://repo.velocitypowered.com/snapshots/' }
+    maven { url 'https://jitpack.io' }
+    maven { url 'https://repo.minestom.net/repository/maven-public/' }
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+dependencies {
+    implementation 'com.github.Minestom:Minestom:f5f323fef9'
+}
