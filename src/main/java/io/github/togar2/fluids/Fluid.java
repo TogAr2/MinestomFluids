@@ -57,6 +57,8 @@ public abstract class Fluid {
 	}
 	
 	public static boolean isFalling(Block block) {
-		return Integer.getInteger(block.getProperty("level")) >= 8;
+		String levelStr = block.getProperty("level");
+		if (levelStr == null) return false;
+		return Integer.getInteger(levelStr) >= 8;
 	}
 }
