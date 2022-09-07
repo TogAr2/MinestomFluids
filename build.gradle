@@ -22,5 +22,5 @@ java {
 }
 
 dependencies {
-    implementation 'com.github.Minestom:Minestom:f5f323fef9'
+    implementation 'com.github.Minestom:Minestom:fc90fe8852'
 }
