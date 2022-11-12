@@ -301,7 +301,7 @@ public abstract class FlowableFluid extends Fluid {
 	}
 	
 	public Block getFlowing(int level, boolean falling) {
-		return defaultBlock.withProperty("level", String.valueOf(falling ? 8 : level));
+		return defaultBlock.withProperty("level", String.valueOf(falling ? 8 : level == 0 ? 0 : 8 - level));
 	}
 	
 	public Block getSource(boolean falling) {

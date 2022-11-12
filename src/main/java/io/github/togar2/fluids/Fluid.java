@@ -52,8 +52,7 @@ public abstract class Fluid {
 		String levelStr = block.getProperty("level");
 		if (levelStr == null) return 8;
 		int level = Integer.parseInt(levelStr);
-		if (level == 0) return 8; // Source block
-		return level;
+		return 8 - level;
 	}
 	
 	public static boolean isFalling(Block block) {
