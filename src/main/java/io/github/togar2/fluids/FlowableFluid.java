@@ -293,7 +293,7 @@ public abstract class FlowableFluid extends Fluid {
 				cancel = true;
 		}
 		
-		if (!cancel) instance.setBlock(point, newBlock);
+		if (!cancel && point.y() >= instance.getDimensionType().getMinY()) instance.setBlock(point, newBlock);
 	}
 	
 	private boolean isMatchingAndStill(Block block) {
