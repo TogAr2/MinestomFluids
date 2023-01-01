@@ -7,8 +7,6 @@ MinestomFluids is a simple library for Minestom, which adds fluid mechanics.
 
 The maven repository is available on [jitpack](https://jitpack.io/#TogAr2/MinestomFluids).
 
-**Note:** Due to issue https://github.com/Minestom/Minestom/issues/1356, the water looks weird client side.
-
 ## Usage
 
 To use the library, add it as a dependency to your project.
