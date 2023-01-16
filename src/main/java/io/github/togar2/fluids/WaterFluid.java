@@ -39,7 +39,7 @@ public class WaterFluid extends FlowableFluid {
 	
 	@Override
 	public int getTickRate(Instance instance) {
-		return 5;
+		return 5 * (TICK_PER_SECOND / 20);
 	}
 	
 	@Override
