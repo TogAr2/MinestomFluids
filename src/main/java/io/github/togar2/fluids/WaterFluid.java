@@ -10,6 +10,8 @@ import net.minestom.server.utils.Direction;
 
 import java.util.Optional;
 
+import static net.minestom.server.MinecraftServer.TICK_PER_SECOND;
+
 public class WaterFluid extends FlowableFluid {
 	
 	public WaterFluid() {
