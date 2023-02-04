@@ -7,6 +7,7 @@ import net.minestom.server.instance.block.Block;
 import net.minestom.server.item.Material;
 import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.utils.Direction;
+import net.minestom.server.MinecraftServer;
 
 import java.util.Optional;
 
@@ -39,7 +40,7 @@ public class WaterFluid extends FlowableFluid {
 	
 	@Override
 	public int getTickRate(Instance instance) {
-		return 5;
+		return 5 * (MinecraftServer.TICK_PER_SECOND / 20);
 	}
 	
 	@Override
