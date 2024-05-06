@@ -1,2 +1,9 @@
+dependencyResolutionManagement {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+
 rootProject.name = 'MinestomFluids'
 

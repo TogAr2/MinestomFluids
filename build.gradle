@@ -1,20 +1,14 @@
 plugins {
     id 'java'
+    id 'maven-publish'
 }
 
-sourceCompatibility = 17
+group = 'io.github.togar2'
+version = '1.0'
 
-group 'io.github.togar2'
-version '1.0-SNAPSHOT'
-
-repositories {
-    mavenCentral()
-
-    maven { url 'https://repo.spongepowered.org/maven' }
-    maven { url 'https://repo.velocitypowered.com/snapshots/' }
-    maven { url 'https://jitpack.io' }
-    maven { url 'https://repo.minestom.net/repository/maven-public/' }
-}
+java.sourceCompatibility = 21
+java.targetCompatibility = 21
+compileJava.options.encoding = 'UTF-8'
 
 java {
     withJavadocJar()
@@ -22,5 +16,14 @@ java {
 }
 
 dependencies {
-    implementation 'com.github.Minestom:Minestom:aebf72de90'
+    compileOnly 'net.minestom:minestom-snapshots:2a7df1ab55'
+    testImplementation 'net.minestom:minestom-snapshots:2a7df1ab55'
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
 }
