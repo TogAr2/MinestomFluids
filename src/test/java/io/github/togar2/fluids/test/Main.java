@@ -1,29 +1,34 @@
 package io.github.togar2.fluids.test;
 
+import io.github.togar2.fluids.Fluid;
 import io.github.togar2.fluids.MinestomFluids;
+import io.github.togar2.fluids.WaterlogHandler;
+import net.kyori.adventure.key.Key;
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Pos;
 import net.minestom.server.entity.GameMode;
-import net.minestom.server.event.player.PlayerBlockInteractEvent;
-import net.minestom.server.event.player.PlayerLoginEvent;
+import net.minestom.server.event.player.*;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockHandler;
 import net.minestom.server.item.Material;
-import net.minestom.server.utils.NamespaceID;
 import net.minestom.server.world.DimensionType;
+
+import java.util.Objects;
 
 public class Main {
 	public static void main(String[] args) {
 		MinecraftServer server = MinecraftServer.init();
 		MinestomFluids.init();
 		
-		var dimension = DimensionType.builder(NamespaceID.from("test"))
+		var dimension = DimensionType.builder()
 				.ambientLight(2.0f).build();
-		MinecraftServer.getDimensionTypeManager().addDimension(dimension);
-		var instance = MinecraftServer.getInstanceManager().createInstanceContainer(dimension);
+		MinecraftServer.getDimensionTypeRegistry().register(Key.key("test"), dimension);
+		var instance = MinecraftServer.getInstanceManager().createInstanceContainer(Objects.requireNonNull(
+				MinecraftServer.getDimensionTypeRegistry().getKey(dimension)));
 		instance.setGenerator(unit -> unit.modifier().fillHeight(0, 40, Block.STONE));
 		var spawn = new Pos(0, 40, 0);
 		
-		MinecraftServer.getGlobalEventHandler().addListener(PlayerLoginEvent.class, event -> {
+		MinecraftServer.getGlobalEventHandler().addListener(AsyncPlayerConfigurationEvent.class, event -> {
 			event.setSpawningInstance(instance);
 			event.getPlayer().setRespawnPoint(spawn);
 			event.getPlayer().setGameMode(GameMode.CREATIVE);
@@ -31,7 +36,32 @@ public class Main {
 		
 		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockInteractEvent.class, event -> {
 			if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.WATER_BUCKET) {
-				event.getInstance().setBlock(event.getBlockPosition().relative(event.getBlockFace()), Block.WATER);
+				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
+				if (handler != null) {
+					handler.placeFluid(instance, event.getBlockPosition(), event.getBlock(), MinestomFluids.WATER, Block.WATER);
+				} else {
+					event.getInstance().placeBlock(new BlockHandler.Placement(
+							Block.WATER, event.getInstance(), event.getBlockPosition().relative(event.getBlockFace())));
+				}
+			} else if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.BUCKET) {
+				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
+				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), event.getBlock(), MinestomFluids.WATER)) {
+					event.getInstance().setBlock(event.getBlockPosition(), MinestomFluids.setWaterlogged(event.getBlock(), false));
+				}
+			}
+		});
+		
+		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockBreakEvent.class, event -> {
+			if (MinestomFluids.isWaterlogged(event.getBlock())) {
+				event.setResultBlock(Block.WATER);
+			}
+		});
+		
+		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockPlaceEvent.class, event -> {
+			Block originalBlock = event.getInstance().getBlock(event.getBlockPosition());
+			Fluid fluid = MinestomFluids.get(originalBlock);
+			if (fluid != MinestomFluids.EMPTY && Fluid.isSource(originalBlock) && MinestomFluids.canBeWaterlogged(event.getBlock())) {
+				event.setBlock(MinestomFluids.setWaterlogged(event.getBlock(), true));
 			}
 		});
 		

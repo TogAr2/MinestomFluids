@@ -1,18 +1,15 @@
 package io.github.togar2.fluids;
 
+import net.minestom.server.ServerFlag;
+import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.Point;
-import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.item.Material;
-import net.minestom.server.sound.SoundEvent;
 import net.minestom.server.utils.Direction;
-import net.minestom.server.MinecraftServer;
-
-import java.util.Optional;
 
 public class WaterFluid extends FlowableFluid {
-	
 	public WaterFluid() {
 		super(Block.WATER, Material.WATER_BUCKET);
 	}
@@ -23,7 +20,7 @@ public class WaterFluid extends FlowableFluid {
 	}
 	
 	@Override
-	protected boolean onBreakingBlock(Instance instance, Point point, Block block) {
+	protected boolean onBreakingBlock(Instance instance, BlockVec point, Block block) {
 		WaterBlockBreakEvent event = new WaterBlockBreakEvent(instance, point, block);
 		return !event.isCancelled();
 	}
@@ -40,12 +37,12 @@ public class WaterFluid extends FlowableFluid {
 	
 	@Override
 	public int getTickRate(Instance instance) {
-		return 5 * (MinecraftServer.TICK_PER_SECOND / 20);
+		return 5 * (ServerFlag.SERVER_TICKS_PER_SECOND / 20);
 	}
 	
 	@Override
-	protected boolean canBeReplacedWith(Instance instance, Point point, Fluid other, Direction direction) {
-		return direction == Direction.DOWN && this == other;
+	protected boolean canBeReplacedWith(Instance instance, BlockVec point, Fluid other, BlockFace direction) {
+		return direction == BlockFace.BOTTOM && this == other;
 	}
 	
 	@Override

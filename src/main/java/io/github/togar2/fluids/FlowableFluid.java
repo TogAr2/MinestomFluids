@@ -3,11 +3,13 @@ package io.github.togar2.fluids;
 import it.unimi.dsi.fastutil.shorts.Short2BooleanMap;
 import it.unimi.dsi.fastutil.shorts.Short2BooleanOpenHashMap;
 import net.minestom.server.MinecraftServer;
+import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.coordinate.Point;
 import net.minestom.server.gamedata.tags.Tag;
 import net.minestom.server.gamedata.tags.TagManager;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.item.Material;
 import net.minestom.server.utils.Direction;
 
@@ -15,13 +17,12 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public abstract class FlowableFluid extends Fluid {
-	
 	public FlowableFluid(Block defaultBlock, Material bucket) {
 		super(defaultBlock, bucket);
 	}
 	
 	@Override
-	public void onTick(Instance instance, Point point, Block block) {
+	public void onTick(Instance instance, BlockVec point, Block block) {
 		if (!isSource(block)) {
 			Block updated = getUpdatedState(instance, point, block);
 			if (MinestomFluids.get(updated).isEmpty()) {
@@ -30,29 +31,30 @@ public abstract class FlowableFluid extends Fluid {
 			} else if (updated != block) {
 				block = updated;
 				instance.setBlock(point, updated);
+				MinestomFluids.scheduleTick(instance, point, block);
 			}
 		}
-		tryFlow(instance, point, block);
+		trySpread(instance, point, block);
 	}
 	
 	@Override
-	public int getNextTickDelay(Instance instance, Point point, Block block) {
+	public int getNextTickDelay(Instance instance, BlockVec point, Block block) {
 		return getTickRate(instance);
 	}
 	
-	protected void tryFlow(Instance instance, Point point, Block block) {
+	protected void trySpread(Instance instance, BlockVec point, Block block) {
 		Fluid fluid = MinestomFluids.get(block);
 		if (fluid.isEmpty()) return;
 		
-		Point down = point.add(0, -1, 0);
+		BlockVec down = point.add(0, -1, 0);
 		Block downBlock = instance.getBlock(down);
 		Block updatedDownFluid = getUpdatedState(instance, down, downBlock);
-		if (canFlow(instance, point, block, Direction.DOWN, down, downBlock, updatedDownFluid)) {
-			flow(instance, down, downBlock, Direction.DOWN, updatedDownFluid);
+		if (canFlow(instance, block, BlockFace.BOTTOM, down, downBlock, updatedDownFluid)) {
+			flow(instance, down, downBlock, BlockFace.BOTTOM, updatedDownFluid);
 			if (getAdjacentSourceCount(instance, point) >= 3) {
 				flowSides(instance, point, block);
 			}
-		} else if (isSource(block) || !canFlowDown(instance, updatedDownFluid, point, block, down, downBlock)) {
+		} else if (isSource(block) || !canFlowDown(instance, updatedDownFluid, block, down, downBlock)) {
 			flowSides(instance, point, block);
 		}
 	}
@@ -60,33 +62,37 @@ public abstract class FlowableFluid extends Fluid {
 	/**
 	 * Flows to the sides whenever possible, or to a hole if found
 	 */
-	private void flowSides(Instance instance, Point point, Block block) {
+	private void flowSides(Instance instance, BlockVec point, Block block) {
 		int newLevel = getLevel(block) - getLevelDecreasePerBlock(instance);
 		if (isFalling(block)) newLevel = 7;
 		if (newLevel <= 0) return;
 		
-		Map<Direction, Block> map = getSpread(instance, point, block);
-		for (Map.Entry<Direction, Block> entry : map.entrySet()) {
-			Direction direction = entry.getKey();
+		Map<BlockFace, Block> map = getSpread(instance, point, block);
+		for (Map.Entry<BlockFace, Block> entry : map.entrySet()) {
+			BlockFace direction = entry.getKey();
 			Block newBlock = entry.getValue();
-			Point offset = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
+			BlockVec offset = point.relative(direction);
 			Block currentBlock = instance.getBlock(offset);
-			if (!canFlow(instance, point, block, direction, offset, currentBlock, newBlock)) continue;
+			if (!canFlow(instance, block, direction, offset, currentBlock, newBlock)) continue;
 			flow(instance, offset, currentBlock, direction, newBlock);
 		}
 	}
 	
+	private static final BlockFace[] HORIZONTAL = new BlockFace[] {
+			BlockFace.SOUTH, BlockFace.WEST, BlockFace.NORTH, BlockFace.EAST
+	};
+	
 	/**
-	 * Gets the updated state of a source block by taking into account its surrounding blocks.
+	 * Gets the updated state of a fluid block by taking into account its surrounding blocks.
 	 */
-	protected Block getUpdatedState(Instance instance, Point point, Block block) {
+	protected Block getUpdatedState(Instance instance, BlockVec point, Block block) {
 		int highestLevel = 0;
 		int stillCount = 0;
-		for (Direction direction : Direction.HORIZONTAL) {
-			Point directionPos = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
-			Block directionBlock = instance.getBlock(directionPos);
+		
+		for (BlockFace face : HORIZONTAL) {
+			Block directionBlock = instance.getBlock(point.relative(face));
 			Fluid directionFluid = MinestomFluids.get(directionBlock);
-			if (directionFluid != this || !receivesFlow(direction, instance, point, block, directionPos, directionBlock))
+			if (directionFluid != this || !receivesFlow(face, block, directionBlock))
 				continue;
 			
 			if (isSource(directionBlock)) {
@@ -104,11 +110,11 @@ public abstract class FlowableFluid extends Fluid {
 			}
 		}
 		
-		Point above = point.add(0, 1, 0);
+		BlockVec above = point.add(0, 1, 0);
 		Block aboveBlock = instance.getBlock(above);
 		Fluid aboveFluid = MinestomFluids.get(aboveBlock);
 		if (!aboveFluid.isEmpty() && aboveFluid == this
-				&& receivesFlow(Direction.UP, instance, point, block, above, aboveBlock)) {
+				&& receivesFlow(BlockFace.TOP, block, aboveBlock)) {
 			return getFlowing(8, true);
 		}
 		
@@ -117,39 +123,41 @@ public abstract class FlowableFluid extends Fluid {
 		return getFlowing(newLevel, false);
 	}
 	
-	private boolean receivesFlow(Direction face, Instance instance, Point point,
-	                             Block block, Point fromPoint, Block fromBlock) {
+	@SuppressWarnings("UnstableApiUsage")
+	private boolean receivesFlow(BlockFace face, Block block, Block fromBlock) {
+		return !block.registry().collisionShape().isOccluded(fromBlock.registry().collisionShape(), face);
+		
 		// Vanilla seems to check if the adjacent block shapes cover the same square, but this seems to work as well
 		// (Might not work with some special blocks)
 		// If there is anything wrong it is most likely this method :D
 		
-		if (block.isLiquid()) {
-			if (face == Direction.UP) {
-				if (fromBlock.isLiquid()) return true;
-				return block.isSolid() || block.isAir();
-				//return isSource(block) || getLevel(block) == 8;
-			} else if (face == Direction.DOWN) {
-				if (fromBlock.isLiquid()) return true;
-				return fromBlock.isSolid() || fromBlock.isAir();
-				//return isSource(fromBlock) || getLevel(fromBlock) == 8;
-			} else {
-				return true;
-			}
-		} else {
-			if (face == Direction.UP) {
-				return block.isSolid() || block.isAir();
-			} else if (face == Direction.DOWN) {
-				return block.isSolid() || block.isAir();
-			} else {
-				return block.isSolid() || block.isAir();
-			}
-		}
+//		if (block.isLiquid()) {
+//			if (face == BlockFace.TOP) {
+//				if (fromBlock.isLiquid()) return true;
+//				return block.isSolid() || block.isAir();
+//				//return isSource(block) || getLevel(block) == 8;
+//			} else if (face == BlockFace.BOTTOM) {
+//				if (fromBlock.isLiquid()) return true;
+//				return fromBlock.isSolid() || fromBlock.isAir();
+//				//return isSource(fromBlock) || getLevel(fromBlock) == 8;
+//			} else {
+//				return true;
+//			}
+//		} else {
+//			if (face == BlockFace.TOP) {
+//				return block.isSolid() || block.isAir();
+//			} else if (face == BlockFace.BOTTOM) {
+//				return block.isSolid() || block.isAir();
+//			} else {
+//				return block.isSolid() || block.isAir();
+//			}
+//		}
 	}
 	
 	/**
 	 * Creates a unique id based on the relation between point and point2
 	 */
-	private static short getID(Point point, Point point2) {
+	private static short getID(BlockVec point, BlockVec point2) {
 		int i = (int) (point2.x() - point.x());
 		int j = (int) (point2.z() - point.z());
 		return (short) ((i + 128 & 0xFF) << 8 | j + 128 & 0xFF);
@@ -160,30 +168,30 @@ public abstract class FlowableFluid extends Fluid {
 	 * If a hole is found within {@code getHoleRadius()} blocks, the water will only flow in that direction.
 	 * A weight is used to determine which hole is the closest.
 	 */
-	protected Map<Direction, Block> getSpread(Instance instance, Point point, Block block) {
+	protected Map<BlockFace, Block> getSpread(Instance instance, BlockVec point, Block block) {
 		int weight = 1000;
-		EnumMap<Direction, Block> map = new EnumMap<>(Direction.class);
+		EnumMap<BlockFace, Block> map = new EnumMap<>(BlockFace.class);
 		Short2BooleanOpenHashMap holeMap = new Short2BooleanOpenHashMap();
 		
-		for (Direction direction : Direction.HORIZONTAL) {
-			Point directionPoint = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
+		for (BlockFace direction : HORIZONTAL) {
+			BlockVec directionPoint = point.relative(direction);
 			Block directionBlock = instance.getBlock(directionPoint);
 			short id = FlowableFluid.getID(point, directionPoint);
 			
 			Block updatedBlock = getUpdatedState(instance, directionPoint, directionBlock);
-			if (!canFlowThrough(instance, updatedBlock, point, block, direction, directionPoint, directionBlock))
+			if (!canFlowThrough(instance, updatedBlock, block, direction, directionPoint, directionBlock))
 				continue;
 			
 			boolean down = holeMap.computeIfAbsent(id, s -> {
-				Point downPoint = directionPoint.add(0, -1, 0);
+				BlockVec downPoint = directionPoint.add(0, -1, 0);
 				return canFlowDown(
 						instance, getFlowing(getLevel(updatedBlock), false),
-						directionPoint, directionBlock, downPoint, instance.getBlock(downPoint)
+						directionBlock, downPoint, instance.getBlock(downPoint)
 				);
 			});
 			
 			int newWeight = down ? 0 : getWeight(instance, directionPoint, 1,
-					direction.opposite(), directionBlock, point, holeMap);
+					direction.getOppositeFace(), directionBlock, point, holeMap);
 			if (newWeight < weight) map.clear();
 			
 			if (newWeight <= weight) {
@@ -194,41 +202,41 @@ public abstract class FlowableFluid extends Fluid {
 		return map;
 	}
 	
-	protected int getWeight(Instance instance, Point point, int initialWeight, Direction skipCheck,
-	                        Block block, Point originalPoint, Short2BooleanMap short2BooleanMap) {
+	protected int getWeight(Instance instance, BlockVec point, int initialWeight, BlockFace skipCheck,
+	                        Block block, BlockVec originalPoint, Short2BooleanMap short2BooleanMap) {
 		int weight = 1000;
-		for (Direction direction : Direction.HORIZONTAL) {
+		for (BlockFace direction : HORIZONTAL) {
 			if (direction == skipCheck) continue;
-			Point directionPoint = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
+			BlockVec directionPoint = point.relative(direction);
 			Block directionBlock = instance.getBlock(directionPoint);
 			short id = FlowableFluid.getID(originalPoint, directionPoint);
 			
-			if (!canFlowThrough(instance, getFlowing(getLevel(block), false), point, block,
+			if (!canFlowThrough(instance, getFlowing(getLevel(block), false), block,
 					direction, directionPoint, directionBlock)) continue;
 			
 			boolean down = short2BooleanMap.computeIfAbsent(id, s -> {
-				Point downPoint = directionPoint.add(0, -1, 0);
+				BlockVec downPoint = directionPoint.add(0, -1, 0);
 				Block downBlock = instance.getBlock(downPoint);
 				return canFlowDown(
 						instance, getFlowing(getLevel(block), false),
-						directionPoint, downBlock, downPoint, downBlock
+						directionBlock, downPoint, downBlock
 				);
 			});
 			if (down) return initialWeight;
 			
 			if (initialWeight < getHoleRadius(instance)) {
 				int newWeight = getWeight(instance, directionPoint, initialWeight + 1,
-						direction.opposite(), directionBlock, originalPoint, short2BooleanMap);
+						direction.getOppositeFace(), directionBlock, originalPoint, short2BooleanMap);
 				if (newWeight < weight) weight = newWeight;
 			}
 		}
 		return weight;
 	}
 	
-	private int getAdjacentSourceCount(Instance instance, Point point) {
+	private int getAdjacentSourceCount(Instance instance, BlockVec point) {
 		int i = 0;
 		for (Direction direction : Direction.HORIZONTAL) {
-			Point currentPoint = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
+			BlockVec currentPoint = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
 			Block block = instance.getBlock(currentPoint);
 			if (!isMatchingAndStill(block)) continue;
 			++i;
@@ -239,8 +247,10 @@ public abstract class FlowableFluid extends Fluid {
 	/**
 	 * Returns whether the fluid can flow through a specific block
 	 */
-	private boolean canFill(Instance instance, Point point, Block block, Block flowing) {
-		//TODO check waterloggable
+	private boolean canFill(Instance instance, BlockVec point, Block block, Block flowing) {
+		WaterlogHandler handler = MinestomFluids.getWaterlog(block);
+		if (handler != null) return handler.canPlaceFluid(instance, point, block, MinestomFluids.get(flowing), flowing);
+		
 		TagManager tags = MinecraftServer.getTagManager();
 		if (block.compare(Block.LADDER)
 				|| block.compare(Block.SUGAR_CANE)
@@ -248,12 +258,7 @@ public abstract class FlowableFluid extends Fluid {
 				|| block.compare(Block.NETHER_PORTAL)
 				|| block.compare(Block.END_PORTAL)
 				|| block.compare(Block.END_GATEWAY)
-				|| block.compare(Block.KELP)
-				|| block.compare(Block.KELP_PLANT)
-				|| block.compare(Block.SEAGRASS)
-				|| block.compare(Block.TALL_SEAGRASS)
-				|| block.compare(Block.SEA_PICKLE)
-				|| tags.getTag(Tag.BasicType.BLOCKS, "minecraft:signs").contains(block.namespace())
+				|| tags.getTag(Tag.BasicType.BLOCKS, "minecraft:signs").contains(block.key())
 				|| block.name().contains("door")
 				|| block.name().contains("coral")) {
 			return false;
@@ -261,41 +266,47 @@ public abstract class FlowableFluid extends Fluid {
 		return !block.isSolid();
 	}
 	
-	private boolean canFlowDown(Instance instance, Block flowing, Point point,
-	                            Block block, Point fromPoint, Block fromBlock) {
-		if (!this.receivesFlow(Direction.DOWN, instance, point, block, fromPoint, fromBlock)) return false;
-		if (MinestomFluids.get(fromBlock) == this) return true;
-		return this.canFill(instance, fromPoint, fromBlock, flowing);
+	private boolean canFlowDown(Instance instance, Block flowing,
+	                            Block block, BlockVec toPoint, Block toBlock) {
+		if (!this.receivesFlow(BlockFace.BOTTOM, block, toBlock)) return false;
+		if (MinestomFluids.get(toBlock) == this) return true;
+		return this.canFill(instance, toPoint, toBlock, flowing);
 	}
 	
-	private boolean canFlowThrough(Instance instance, Block flowing, Point point, Block block,
-	                               Direction face, Point fromPoint, Block fromBlock) {
-		return !isMatchingAndStill(fromBlock)
-				&& receivesFlow(face, instance, point, block, fromPoint, fromBlock)
-				&& canFill(instance, fromPoint, fromBlock, flowing);
+	private boolean canFlowThrough(Instance instance, Block flowing, Block block,
+	                               BlockFace face, BlockVec toPoint, Block toBlock) {
+		return !isMatchingAndStill(toBlock)
+				&& receivesFlow(face, block, toBlock)
+				&& canFill(instance, toPoint, toBlock, flowing);
 	}
 	
-	protected boolean canFlow(Instance instance, Point fluidPoint, Block flowingBlock,
-	                          Direction flowDirection, Point flowTo, Block flowToBlock, Block newFlowing) {
-		return MinestomFluids.get(flowToBlock).canBeReplacedWith(instance, flowTo, MinestomFluids.get(newFlowing), flowDirection)
-				&& receivesFlow(flowDirection, instance, fluidPoint, flowingBlock, flowTo, flowToBlock)
+	protected boolean canFlow(Instance instance, Block flowingBlock, BlockFace flowFace,
+	                          BlockVec flowTo, Block flowToBlock, Block newFlowing) {
+		return MinestomFluids.get(flowToBlock).canBeReplacedWith(instance, flowTo, MinestomFluids.get(newFlowing), flowFace)
+				&& receivesFlow(flowFace, flowingBlock, flowToBlock)
 				&& canFill(instance, flowTo, flowToBlock, newFlowing);
 	}
 	
 	/**
 	 * Sets the position to the new block, executing {@code onBreakingBlock()} before breaking any non-air block.
 	 */
-	protected void flow(Instance instance, Point point, Block block, Direction direction, Block newBlock) {
-		if (block.equals(newBlock)) return; // Prevent unnecessary updates
-		
-		//TODO waterloggable check
-		boolean cancel = false;
-		if (!block.isAir()) {
-			if (!onBreakingBlock(instance, point, block))
-				cancel = true;
+	protected void flow(Instance instance, BlockVec point, Block block, BlockFace direction, Block newBlock) {
+		WaterlogHandler handler = MinestomFluids.getWaterlog(block);
+		if (handler != null) {
+			handler.placeFluid(instance, point, block, MinestomFluids.get(newBlock), newBlock);
+		} else {
+			if (block.equals(newBlock)) return; // Prevent unnecessary updates
+			
+			if (!block.isAir() && !onBreakingBlock(instance, point, block)) {
+				// Event has been cancelled
+				return;
+			}
+			
+			if (point.y() >= MinecraftServer.getDimensionTypeRegistry().get(instance.getDimensionType()).minY()) {
+				instance.setBlock(point, newBlock);
+				MinestomFluids.scheduleTick(instance, point, newBlock);
+			}
 		}
-		
-		if (!cancel && point.y() >= instance.getDimensionType().getMinY()) instance.setBlock(point, newBlock);
 	}
 	
 	private boolean isMatchingAndStill(Block block) {
@@ -303,7 +314,7 @@ public abstract class FlowableFluid extends Fluid {
 	}
 	
 	public Block getFlowing(int level, boolean falling) {
-		return defaultBlock.withProperty("level", String.valueOf(falling ? 8 : level == 0 ? 0 : 8 - level));
+		return defaultBlock.withProperty("level", String.valueOf((falling ? 8 : 0) + (level == 0 ? 0 : 8 - level)));
 	}
 	
 	public Block getSource(boolean falling) {
@@ -319,7 +330,7 @@ public abstract class FlowableFluid extends Fluid {
 	/**
 	 * Returns whether the block can be broken
 	 */
-	protected abstract boolean onBreakingBlock(Instance instance, Point point, Block block);
+	protected abstract boolean onBreakingBlock(Instance instance, BlockVec point, Block block);
 	
 	public abstract int getTickRate(Instance instance);
 	
@@ -328,7 +339,7 @@ public abstract class FlowableFluid extends Fluid {
 	}
 	
 	@Override
-	public double getHeight(Block block, Instance instance, Point point) {
+	public double getHeight(Block block, Instance instance, BlockVec point) {
 		return isFluidAboveEqual(block, instance, point) ? 1 : getHeight(block);
 	}
 	

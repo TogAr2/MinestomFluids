@@ -1,10 +1,10 @@
 package io.github.togar2.fluids;
 
-import net.minestom.server.coordinate.Point;
+import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.item.Material;
-import net.minestom.server.utils.Direction;
 
 public class EmptyFluid extends Fluid {
 	
@@ -13,12 +13,12 @@ public class EmptyFluid extends Fluid {
 	}
 	
 	@Override
-	protected boolean canBeReplacedWith(Instance instance, Point point, Fluid other, Direction direction) {
+	protected boolean canBeReplacedWith(Instance instance, BlockVec point, Fluid other, BlockFace direction) {
 		return true;
 	}
 	
 	@Override
-	public int getNextTickDelay(Instance instance, Point point, Block block) {
+	public int getNextTickDelay(Instance instance, BlockVec point, Block block) {
 		return -1;
 	}
 	
@@ -33,7 +33,7 @@ public class EmptyFluid extends Fluid {
 	}
 	
 	@Override
-	public double getHeight(Block block, Instance instance, Point point) {
+	public double getHeight(Block block, Instance instance, BlockVec point) {
 		return 0;
 	}
 	
