@@ -5,9 +5,9 @@ import net.minestom.server.coordinate.BlockVec;
 import net.minestom.server.event.Event;
 import net.minestom.server.event.EventNode;
 import net.minestom.server.event.instance.InstanceTickEvent;
-import net.minestom.server.event.instance.InstanceUnregisterEvent;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
+import net.minestom.server.tag.Tag;
 
 import java.util.HashSet;
 import java.util.Map;
@@ -20,7 +20,7 @@ public class MinestomFluids {
 	
 	private static final Map<Integer, WaterlogHandler> WATERLOG_HANDLERS = new ConcurrentHashMap<>();
 	
-	private static final Map<Instance, Map<Long, Set<BlockVec>>> UPDATES = new ConcurrentHashMap<>();
+	private static final Tag<Map<Long, Set<BlockVec>>> UPDATES = Tag.Transient("fluid-updates");
 	
 	public static Fluid get(Block block) {
 		if (block.compare(Block.WATER) || isWaterlogged(block)) {
@@ -33,13 +33,21 @@ public class MinestomFluids {
 	}
 	
 	public static void tick(InstanceTickEvent event) {
-		long age = event.getInstance().getWorldAge();
-		Set<BlockVec> currentUpdate = UPDATES.computeIfAbsent(event.getInstance(), i -> new ConcurrentHashMap<>()).get(age);
+		Instance instance = event.getInstance();
+		long age = instance.getWorldAge();
+		
+		var updates = instance.getTag(UPDATES);
+		if (updates == null) {
+			updates = new ConcurrentHashMap<>();
+			instance.setTag(UPDATES, updates);
+		}
+		
+		Set<BlockVec> currentUpdate = updates.remove(age);
 		if (currentUpdate == null) return;
+		
 		for (BlockVec point : currentUpdate) {
 			tick(event.getInstance(), point);
 		}
-		UPDATES.get(event.getInstance()).remove(age);
 	}
 	
 	public static void tick(Instance instance, BlockVec point) {
@@ -51,8 +59,14 @@ public class MinestomFluids {
 		int tickDelay = MinestomFluids.get(block).getNextTickDelay(instance, point, block);
 		if (tickDelay == -1) return;
 		
+		var updates = instance.getTag(UPDATES);
+		if (updates == null) {
+			updates = new ConcurrentHashMap<>();
+			instance.setTag(UPDATES, updates);
+		}
+		
 		long newAge = instance.getWorldAge() + tickDelay;
-		UPDATES.get(instance).computeIfAbsent(newAge, l -> new HashSet<>()).add(point);
+		updates.computeIfAbsent(newAge, l -> new HashSet<>()).add(point);
 	}
 	
 	public static void registerWaterlog(Block block, WaterlogHandler handler) {
@@ -90,7 +104,6 @@ public class MinestomFluids {
 	public static EventNode<Event> events() {
 		EventNode<Event> node = EventNode.all("fluid-events");
 		node.addListener(InstanceTickEvent.class, MinestomFluids::tick);
-		node.addListener(InstanceUnregisterEvent.class, event -> UPDATES.remove(event.getInstance()));
 		return node;
 	}
 }
