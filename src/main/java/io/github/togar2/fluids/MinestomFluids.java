@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class MinestomFluids {
 	public static final Fluid WATER = new WaterFluid();
+	public static final Fluid LAVA = new LavaFluid();
 	public static final Fluid EMPTY = new EmptyFluid();
 	
 	public static final FluidState AIR_STATE = new FluidState(Block.AIR, EMPTY);
@@ -28,7 +29,7 @@ public class MinestomFluids {
 		if (block.compare(Block.WATER) || FluidState.isWaterlogged(block)) {
 			return WATER;
 		} else if (block.compare(Block.LAVA)) {
-			return EMPTY;
+			return LAVA;
 		} else {
 			return EMPTY;
 		}
@@ -58,7 +59,10 @@ public class MinestomFluids {
 	}
 	
 	public static void scheduleTick(Instance instance, BlockVec point, FluidState state) {
-		int tickDelay = state.fluid().getNextTickDelay(instance, point);
+		scheduleTick(instance, point, state.fluid().getNextTickDelay(instance, point));
+	}
+	
+	public static void scheduleTick(Instance instance, BlockVec point, int tickDelay) {
 		if (tickDelay == -1) return;
 		
 		var updates = instance.getTag(UPDATES);
@@ -81,6 +85,7 @@ public class MinestomFluids {
 	
 	public static void init() {
 		MinecraftServer.getBlockManager().registerBlockPlacementRule(new FluidPlacementRule(Block.WATER));
+		MinecraftServer.getBlockManager().registerBlockPlacementRule(new LavaPlacementRule(Block.LAVA));
 		
 		for (Block block : Block.values()) {
 			if (FluidState.canBeWaterlogged(block)) {

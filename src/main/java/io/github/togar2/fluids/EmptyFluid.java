@@ -13,7 +13,8 @@ public class EmptyFluid extends Fluid {
 	}
 	
 	@Override
-	protected boolean canBeReplacedWith(Instance instance, BlockVec point, Fluid other, BlockFace direction) {
+	protected boolean canBeReplacedWith(Instance instance, BlockVec point, FluidState currentState,
+	                                    FluidState newState, BlockFace direction) {
 		return true;
 	}
 	
@@ -33,7 +34,7 @@ public class EmptyFluid extends Fluid {
 	}
 	
 	@Override
-	public double getHeight(Instance instance, BlockVec point) {
+	public double getHeight(FluidState state, Instance instance, BlockVec point) {
 		return 0;
 	}
 	

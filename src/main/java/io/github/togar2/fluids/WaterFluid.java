@@ -6,6 +6,7 @@ import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.item.Material;
+import org.jetbrains.annotations.Nullable;
 
 public class WaterFluid extends FlowableFluid {
 	public WaterFluid() {
@@ -18,9 +19,10 @@ public class WaterFluid extends FlowableFluid {
 	}
 	
 	@Override
-	protected boolean onBreakingBlock(Instance instance, BlockVec point, Block block) {
-		WaterBlockBreakEvent event = new WaterBlockBreakEvent(instance, point, block);
-		return !event.isCancelled();
+	protected @Nullable FluidState onBreakingBlock(Instance instance, BlockVec point,
+	                                               BlockFace direction, Block block, FluidState newState) {
+		FluidBlockBreakEvent event = new FluidBlockBreakEvent(instance, point, direction, block, newState);
+		return event.isCancelled() ? null : event.getNewState();
 	}
 	
 	@Override
@@ -39,8 +41,9 @@ public class WaterFluid extends FlowableFluid {
 	}
 	
 	@Override
-	protected boolean canBeReplacedWith(Instance instance, BlockVec point, Fluid other, BlockFace direction) {
-		return direction == BlockFace.BOTTOM && this == other;
+	protected boolean canBeReplacedWith(Instance instance, BlockVec point, FluidState currentState,
+	                                    FluidState newState, BlockFace direction) {
+		return direction == BlockFace.BOTTOM && !newState.isWater();
 	}
 	
 	@Override

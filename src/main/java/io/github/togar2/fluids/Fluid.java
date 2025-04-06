@@ -24,8 +24,8 @@ public abstract class Fluid {
 		return bucket;
 	}
 	
-	protected abstract boolean canBeReplacedWith(Instance instance, BlockVec point,
-	                                             Fluid other, BlockFace direction);
+	protected abstract boolean canBeReplacedWith(Instance instance, BlockVec point, FluidState currentState,
+	                                             FluidState newState, BlockFace direction);
 	
 	public abstract int getNextTickDelay(Instance instance, BlockVec point);
 	
@@ -37,6 +37,6 @@ public abstract class Fluid {
 	
 	protected abstract double getBlastResistance();
 	
-	public abstract double getHeight(Instance instance, BlockVec point);
+	public abstract double getHeight(FluidState state, Instance instance, BlockVec point);
 	public abstract double getHeight(FluidState state);
 }

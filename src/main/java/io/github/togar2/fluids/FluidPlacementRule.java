@@ -15,8 +15,10 @@ public class FluidPlacementRule extends BlockPlacementRule {
 	public @NotNull Block blockUpdate(@NotNull UpdateState updateState) {
 		String waterlogged = updateState.currentBlock().properties().get("waterlogged");
 		if (waterlogged == null || waterlogged.equals("true")) {
+			Instance instance = (Instance) updateState.instance();
+			BlockVec blockVec = new BlockVec(updateState.blockPosition());
 			MinestomFluids.scheduleTick(
-					(Instance) updateState.instance(), new BlockVec(updateState.blockPosition()),
+					instance, blockVec,
 					FluidState.of(updateState.currentBlock())
 			);
 		}
@@ -27,8 +29,10 @@ public class FluidPlacementRule extends BlockPlacementRule {
 	public @NotNull Block blockPlace(@NotNull PlacementState placementState) {
 		String waterlogged = placementState.block().properties().get("waterlogged");
 		if (waterlogged == null || waterlogged.equals("true")) {
+			Instance instance = (Instance) placementState.instance();
+			BlockVec blockVec = new BlockVec(placementState.placePosition());
 			MinestomFluids.scheduleTick(
-					(Instance) placementState.instance(), new BlockVec(placementState.placePosition()),
+					instance, blockVec,
 					FluidState.of(placementState.block())
 			);
 		}

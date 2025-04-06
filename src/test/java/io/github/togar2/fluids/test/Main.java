@@ -49,6 +49,9 @@ public class Main {
 				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), FluidState.of(event.getBlock()))) {
 					event.getInstance().setBlock(event.getBlockPosition(), FluidState.setWaterlogged(event.getBlock(), false));
 				}
+			} else if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.LAVA_BUCKET) {
+				event.getInstance().placeBlock(new BlockHandler.Placement(
+						Block.LAVA, event.getInstance(), event.getBlockPosition().relative(event.getBlockFace())));
 			}
 		});
 		

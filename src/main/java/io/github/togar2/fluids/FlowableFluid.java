@@ -10,8 +10,10 @@ import net.minestom.server.gamedata.tags.TagManager;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
+import net.minestom.server.instance.block.BlockHandler;
 import net.minestom.server.item.Material;
 import net.minestom.server.utils.Direction;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -30,8 +32,8 @@ public abstract class FlowableFluid extends Fluid {
 				instance.setBlock(point, Block.AIR);
 			} else if (!updated.equals(state)) {
 				state = updated;
-				instance.setBlock(point, updated.block());
-				MinestomFluids.scheduleTick(instance, point, updated);
+				instance.setBlock(point, updated.block()); // TODO should this be a placement? If it is, the delay will be different
+				MinestomFluids.scheduleTick(instance, point, getNextSpreadDelay(instance, point, state, updated));
 			}
 		}
 		trySpread(instance, point, state);
@@ -45,7 +47,7 @@ public abstract class FlowableFluid extends Fluid {
 		if (canMaybeFlowThrough(state, downState, BlockFace.BOTTOM)) {
 			FluidState newState = getUpdatedState(instance, down, downState);
 			
-			if (downState.fluid().canBeReplacedWith(instance, down, newState.fluid(), BlockFace.BOTTOM)
+			if (downState.fluid().canBeReplacedWith(instance, down, downState, newState, BlockFace.BOTTOM)
 					&& canFill(instance, down, downState.block(), newState)) {
 				flow(instance, down, newState, BlockFace.BOTTOM);
 				
@@ -162,7 +164,7 @@ public abstract class FlowableFluid extends Fluid {
 			if (newWeight < weight) map.clear();
 			
 			if (newWeight <= weight) {
-				if (directionState.fluid().canBeReplacedWith(instance, directionPoint, newState.fluid(), direction))
+				if (directionState.fluid().canBeReplacedWith(instance, directionPoint, directionState, newState, direction))
 					map.put(direction, newState);
 				
 				weight = newWeight;
@@ -280,13 +282,15 @@ public abstract class FlowableFluid extends Fluid {
 		} else {
 			if (currentBlock.equals(newState.block())) return; // Prevent unnecessary updates
 			
-			if (!currentBlock.isAir() && !onBreakingBlock(instance, point, currentBlock)) {
-				// Event has been cancelled
-				return;
+			if (!currentBlock.isAir()) {
+				newState = onBreakingBlock(instance, point, direction, currentBlock, newState);
+				if (newState == null) {
+					// Event has been cancelled
+					return;
+				}
 			}
 			
-			instance.setBlock(point, newState.block());
-			MinestomFluids.scheduleTick(instance, point, newState);
+			instance.placeBlock(new BlockHandler.Placement(newState.block(), instance, point));
 		}
 	}
 	
@@ -300,19 +304,23 @@ public abstract class FlowableFluid extends Fluid {
 
 	protected abstract int getHoleRadius(Instance instance);
 	
-	/**
-	 * Returns whether the block can be broken
-	 */
-	protected abstract boolean onBreakingBlock(Instance instance, BlockVec point, Block block);
+	public int getNextSpreadDelay(Instance instance, BlockVec point, FluidState state, FluidState newState) {
+		return getNextTickDelay(instance, point);
+	}
 	
-	private static boolean isFluidAboveEqual(Block block, Instance instance, Point point) {
-		return MinestomFluids.get(block) == MinestomFluids.get(instance.getBlock(point.add(0, 1, 0)));
+	/**
+	 * @return the FluidState that should be placed on the broken block position.
+	 */
+	protected abstract @Nullable FluidState onBreakingBlock(Instance instance, BlockVec point, BlockFace direction,
+	                                                        Block block, FluidState newState);
+	
+	private static boolean isSameFluidAbove(FluidState state, Instance instance, Point point) {
+		return state.sameFluid(instance.getBlock(point.add(0, 1, 0)));
 	}
 	
 	@Override
-	public double getHeight(Instance instance, BlockVec point) {
-		Block block = instance.getBlock(point);
-		return isFluidAboveEqual(block, instance, point) ? 1 : getHeight(FluidState.of(block));
+	public double getHeight(FluidState state, Instance instance, BlockVec point) {
+		return isSameFluidAbove(state, instance, point) ? 1 : getHeight(state);
 	}
 	
 	@Override

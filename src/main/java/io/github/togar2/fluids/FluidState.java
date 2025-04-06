@@ -1,5 +1,7 @@
 package io.github.togar2.fluids;
 
+import net.minestom.server.coordinate.BlockVec;
+import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 
 public record FluidState(Block block, Fluid fluid) {
@@ -39,12 +41,20 @@ public record FluidState(Block block, Fluid fluid) {
 		return fluid == MinestomFluids.WATER;
 	}
 	
+	public boolean isLava() {
+		return fluid == MinestomFluids.LAVA;
+	}
+	
 	public boolean sameFluid(FluidState other) {
 		return fluid == other.fluid;
 	}
 	
 	public boolean sameFluid(Block other) {
 		return fluid == MinestomFluids.get(other);
+	}
+	
+	public double getHeight(Instance instance, BlockVec point) {
+		return fluid.getHeight(this, instance, point);
 	}
 	
 	public FluidState asFlowing(int level, boolean falling) {
