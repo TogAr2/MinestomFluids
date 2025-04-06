@@ -1,6 +1,7 @@
 package io.github.togar2.fluids.test;
 
 import io.github.togar2.fluids.Fluid;
+import io.github.togar2.fluids.FluidState;
 import io.github.togar2.fluids.MinestomFluids;
 import io.github.togar2.fluids.WaterlogHandler;
 import net.kyori.adventure.key.Key;
@@ -38,14 +39,14 @@ public class Main {
 			if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.WATER_BUCKET) {
 				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
 				if (handler != null) {
-					handler.placeFluid(instance, event.getBlockPosition(), event.getBlock(), MinestomFluids.WATER, Block.WATER);
+					handler.placeFluid(instance, event.getBlockPosition(), MinestomFluids.WATER.getDefaultState());
 				} else {
 					event.getInstance().placeBlock(new BlockHandler.Placement(
 							Block.WATER, event.getInstance(), event.getBlockPosition().relative(event.getBlockFace())));
 				}
 			} else if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.BUCKET) {
 				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
-				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), event.getBlock(), MinestomFluids.WATER)) {
+				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), FluidState.of(event.getBlock()))) {
 					event.getInstance().setBlock(event.getBlockPosition(), MinestomFluids.setWaterlogged(event.getBlock(), false));
 				}
 			}
@@ -60,7 +61,7 @@ public class Main {
 		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockPlaceEvent.class, event -> {
 			Block originalBlock = event.getInstance().getBlock(event.getBlockPosition());
 			Fluid fluid = MinestomFluids.get(originalBlock);
-			if (fluid != MinestomFluids.EMPTY && Fluid.isSource(originalBlock) && MinestomFluids.canBeWaterlogged(event.getBlock())) {
+			if (fluid != MinestomFluids.EMPTY && FluidState.isSource(originalBlock) && MinestomFluids.canBeWaterlogged(event.getBlock())) {
 				event.setBlock(MinestomFluids.setWaterlogged(event.getBlock(), true));
 			}
 		});

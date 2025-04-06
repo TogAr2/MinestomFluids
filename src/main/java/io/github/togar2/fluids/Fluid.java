@@ -8,16 +8,16 @@ import net.minestom.server.item.ItemStack;
 import net.minestom.server.item.Material;
 
 public abstract class Fluid {
-	protected final Block defaultBlock;
+	protected final FluidState defaultState;
 	private final ItemStack bucket;
 	
 	public Fluid(Block block, Material bucket) {
-		this.defaultBlock = block;
+		this.defaultState = new FluidState(block, this);
 		this.bucket = ItemStack.of(bucket);
 	}
 	
-	public Block getDefaultBlock() {
-		return defaultBlock;
+	public FluidState getDefaultState() {
+		return defaultState;
 	}
 	
 	public ItemStack getBucket() {
@@ -27,9 +27,9 @@ public abstract class Fluid {
 	protected abstract boolean canBeReplacedWith(Instance instance, BlockVec point,
 	                                             Fluid other, BlockFace direction);
 	
-	public abstract int getNextTickDelay(Instance instance, BlockVec point, Block block);
+	public abstract int getNextTickDelay(Instance instance, BlockVec point);
 	
-	public void onTick(Instance instance, BlockVec point, Block block) {}
+	public void onTick(Instance instance, BlockVec point, FluidState state) {}
 	
 	protected boolean isEmpty() {
 		return false;
@@ -37,27 +37,6 @@ public abstract class Fluid {
 	
 	protected abstract double getBlastResistance();
 	
-	public abstract double getHeight(Block block, Instance instance, BlockVec point);
-	public abstract double getHeight(Block block);
-	
-	public static boolean isSource(Block block) {
-		if (MinestomFluids.isWaterlogged(block)) return true;
-		String levelStr = block.getProperty("level");
-		return levelStr != null && Integer.parseInt(levelStr) == 0;
-	}
-	
-	public static int getLevel(Block block) {
-		if (MinestomFluids.isWaterlogged(block)) return 8;
-		String levelStr = block.getProperty("level");
-		if (levelStr == null) return 0;
-		int level = Integer.parseInt(levelStr);
-		if (level >= 8) return 8; // Falling water
-		return 8 - level;
-	}
-	
-	public static boolean isFalling(Block block) {
-		String levelStr = block.getProperty("level");
-		if (levelStr == null) return false;
-		return Integer.parseInt(levelStr) >= 8;
-	}
+	public abstract double getHeight(Instance instance, BlockVec point);
+	public abstract double getHeight(FluidState state);
 }

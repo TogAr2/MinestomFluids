@@ -2,12 +2,10 @@ package io.github.togar2.fluids;
 
 import net.minestom.server.ServerFlag;
 import net.minestom.server.coordinate.BlockVec;
-import net.minestom.server.coordinate.Point;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
 import net.minestom.server.item.Material;
-import net.minestom.server.utils.Direction;
 
 public class WaterFluid extends FlowableFluid {
 	public WaterFluid() {
@@ -36,7 +34,7 @@ public class WaterFluid extends FlowableFluid {
 	}
 	
 	@Override
-	public int getTickRate(Instance instance) {
+	public int getNextTickDelay(Instance instance, BlockVec point) {
 		return 5 * (ServerFlag.SERVER_TICKS_PER_SECOND / 20);
 	}
 	

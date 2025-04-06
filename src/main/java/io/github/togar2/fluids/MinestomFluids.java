@@ -51,12 +51,12 @@ public class MinestomFluids {
 	}
 	
 	public static void tick(Instance instance, BlockVec point) {
-		Block block = instance.getBlock(point);
-		get(block).onTick(instance, point, block);
+		FluidState state = FluidState.of(instance.getBlock(point));
+		state.fluid().onTick(instance, point, state);
 	}
 	
-	public static void scheduleTick(Instance instance, BlockVec point, Block block) {
-		int tickDelay = MinestomFluids.get(block).getNextTickDelay(instance, point, block);
+	public static void scheduleTick(Instance instance, BlockVec point, FluidState state) {
+		int tickDelay = state.fluid().getNextTickDelay(instance, point);
 		if (tickDelay == -1) return;
 		
 		var updates = instance.getTag(UPDATES);
