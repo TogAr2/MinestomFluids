@@ -42,11 +42,12 @@ public abstract class FlowableFluid extends Fluid {
 		
 		BlockVec down = point.add(0, -1, 0);
 		FluidState downState = FluidState.of(instance.getBlock(down));
-		if (canFlowThrough(instance, down, state, downState, BlockFace.BOTTOM)) {
-			FluidState updatedDownState = getUpdatedState(instance, down, downState);
+		if (canMaybeFlowThrough(state, downState, BlockFace.BOTTOM)) {
+			FluidState newState = getUpdatedState(instance, down, downState);
 			
-			if (downState.fluid().canBeReplacedWith(instance, down, updatedDownState.fluid(), BlockFace.BOTTOM)) {
-				flow(instance, down, updatedDownState, BlockFace.BOTTOM);
+			if (downState.fluid().canBeReplacedWith(instance, down, newState.fluid(), BlockFace.BOTTOM)
+					&& canFill(instance, down, downState.block(), newState)) {
+				flow(instance, down, newState, BlockFace.BOTTOM);
 				
 				if (getAdjacentSourceCount(instance, point) >= 3)
 					flowSides(instance, point, state);
@@ -145,10 +146,12 @@ public abstract class FlowableFluid extends Fluid {
 			FluidState directionState = FluidState.of(instance.getBlock(directionPoint));
 			short id = FlowableFluid.getID(point, directionPoint);
 			
-			if (!canFlowThrough(instance, directionPoint, flowing, directionState, direction))
+			if (!canMaybeFlowThrough(flowing, directionState, direction))
 				continue;
 			
 			FluidState newState = getUpdatedState(instance, directionPoint, directionState);
+			if (!canFill(instance, directionPoint, directionState.block(), newState))
+				continue;
 			
 			boolean down = holeMap.computeIfAbsent(id, s -> {
 				BlockVec downPoint = directionPoint.add(0, -1, 0);
@@ -160,9 +163,8 @@ public abstract class FlowableFluid extends Fluid {
 			if (newWeight < weight) map.clear();
 			
 			if (newWeight <= weight) {
-				if (directionState.fluid().canBeReplacedWith(instance, directionPoint, newState.fluid(), direction)) {
+				if (directionState.fluid().canBeReplacedWith(instance, directionPoint, newState.fluid(), direction))
 					map.put(direction, newState);
-				}
 				
 				weight = newWeight;
 			}
@@ -182,7 +184,7 @@ public abstract class FlowableFluid extends Fluid {
 			FluidState directionState = FluidState.of(instance.getBlock(directionPoint));
 			short id = FlowableFluid.getID(originalPoint, directionPoint);
 			
-			if (!canFlowThrough(instance, directionPoint, defaultState.asFlowing(7, false), directionState, direction))
+			if (!canFlowTo(instance, directionPoint, flowing, defaultState.asFlowing(7, false), directionState, direction))
 				continue;
 			
 			boolean down = short2BooleanMap.computeIfAbsent(id, s -> {
@@ -212,27 +214,37 @@ public abstract class FlowableFluid extends Fluid {
 	}
 	
 	/**
-	 * Returns whether the fluid can flow through a specific block
+	 * @return whether this block can hold any fluid
 	 */
-	private boolean canFill(Instance instance, BlockVec point, Block block, FluidState flowing) {
-		WaterlogHandler handler = MinestomFluids.getWaterlog(block);
-		if (handler != null) return handler.canPlaceFluid(instance, point, block, flowing);
+	private boolean canHoldFluid(Block block) {
+		if (MinestomFluids.canBeWaterlogged(block)) return true;
+		if (block.isSolid()) return false;
 		
 		TagManager tags = MinecraftServer.getTagManager();
-		if (block.compare(Block.LADDER)
+		return !(block.compare(Block.LADDER)
 				|| block.compare(Block.SUGAR_CANE)
 				|| block.compare(Block.BUBBLE_COLUMN)
 				|| block.compare(Block.NETHER_PORTAL)
 				|| block.compare(Block.END_PORTAL)
 				|| block.compare(Block.END_GATEWAY)
+				|| block.compare(Block.STRUCTURE_VOID)
 				|| tags.getTag(Tag.BasicType.BLOCKS, "minecraft:signs").contains(block.key())
-				|| block.name().contains("door")
-				|| block.name().contains("coral")) {
-			return false;
-		}
-		return !block.isSolid();
+				|| tags.getTag(Tag.BasicType.BLOCKS, "minecraft:doors").contains(block.key()));
 	}
 	
+	/**
+	 * @return whether the specified position can be filled with the specified FluidState
+	 */
+	private boolean canFill(Instance instance, BlockVec point, Block block, FluidState newState) {
+		WaterlogHandler handler = MinestomFluids.getWaterlog(block);
+		if (handler != null) return handler.canPlaceFluid(instance, point, block, newState);
+		return canHoldFluid(block);
+	}
+	
+	/**
+	 * Used to determine if water should prioritize going to this point.
+	 * @return whether the specified point is a hole
+	 */
 	private boolean isWaterHole(Instance instance, FluidState flowing, BlockVec flowTo) {
 		FluidState flowToState = FluidState.of(instance.getBlock(flowTo));
 		if (!receivesFlow(BlockFace.BOTTOM, flowing, flowToState)) return false; // Don't flow down if the path is obstructed
@@ -240,24 +252,23 @@ public abstract class FlowableFluid extends Fluid {
 		return canFill(instance, flowTo, flowToState.block(), flowing); // Flow down when the block beneath can be filled
 	}
 	
-	private boolean canFlowThrough(Instance instance, BlockVec flowTo,
-	                               FluidState flowing, FluidState state,
-	                               BlockFace face) {
+	private boolean canMaybeFlowThrough(FluidState flowing, FluidState state,
+	                                    BlockFace face) {
 		return !isMatchingAndStill(state) // Don't flow through if matching and still
 				&& receivesFlow(face, flowing, state) // Only flow through when the path is not obstructed
-				&& canFill(instance, flowTo, state.block(), flowing); // Only flow through when the block can be filled
+				&& canHoldFluid(state.block()); // Only flow through when the block can hold fluid
 	}
 	
 	protected boolean canFlowTo(Instance instance, BlockVec flowTo,
 	                            FluidState flowing, FluidState newState, FluidState currentState,
 	                            BlockFace flowFace) {
-		return currentState.fluid().canBeReplacedWith(instance, flowTo, newState.fluid(), flowFace)
+		return !isMatchingAndStill(currentState) // Don't flow if matching and still
 				&& receivesFlow(flowFace, flowing, currentState) // Only flow when the path is not obstructed
-				&& canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled
+				&& canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled with this state
 	}
 	
 	/**
-	 * Puts the new block at the position, executing {@code onBreakingBlock()} before breaking any non-air block.
+	 * Puts the new fluid at the position, executing {@code onBreakingBlock()} before breaking any non-air block.
 	 */
 	protected void flow(Instance instance, BlockVec point, FluidState newState, BlockFace direction) {
 		if (point.y() < MinecraftServer.getDimensionTypeRegistry().get(instance.getDimensionType()).minY())
