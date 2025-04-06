@@ -33,6 +33,14 @@ By default, every waterloggable block has the same handler.
 - `FluidBlockBreakEvent`: called upon breaking a block, which can be cancelled or can be used to set the new fluid state.
 - `LavaSolidifyEvent`: called when lava turns into stone/cobblestone/obsidian when in contact with water. This event can be cancelled or can be used to change the resulting block.
 
+## Known issues
+
+Fluids may get updated too quickly in some cases, if there are multiple neighbour changes in a short timespan.
+This is especially noticeable with cobblestone generators: breaking the cobblestone block will cause a fluid update, but generating the cobblestone block back will trigger a fluid update as well.
+This will result in the cobblestone often generating back too quickly.
+
+Sadly, it is very difficult to solve this issue without using the complicated ticking and neighbour update mechanics present in vanilla.
+
 ## Contributing
 
 You are welcome to open an issue or pull request.

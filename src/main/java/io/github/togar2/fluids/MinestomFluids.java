@@ -24,7 +24,6 @@ public class MinestomFluids {
 	private static final Map<Integer, WaterlogHandler> WATERLOG_HANDLERS = new ConcurrentHashMap<>();
 	
 	private static final Tag<Map<Long, Set<BlockVec>>> TICK_UPDATES = Tag.Transient("fluid-tick-updates");
-	private static final Tag<Map<BlockVec, Long>> POSITION_UPDATES = Tag.Transient("fluid-position-updates");
 	
 	public static Fluid get(Block block) {
 		if (block.compare(Block.WATER) || FluidState.isWaterlogged(block)) {
@@ -71,22 +70,9 @@ public class MinestomFluids {
 			updates = new ConcurrentHashMap<>();
 			instance.setTag(TICK_UPDATES, updates);
 		}
-		var updatePerPoint = instance.getTag(POSITION_UPDATES);
-		if (updatePerPoint == null) {
-			updatePerPoint = new ConcurrentHashMap<>();
-			instance.setTag(POSITION_UPDATES, updatePerPoint);
-		}
-		
-		// Remove previous update
-		if (updatePerPoint.containsKey(point)) {
-			Long tick = updatePerPoint.remove(point);
-			Set<BlockVec> updatePoints = updates.get(tick);
-			if (updatePoints != null) updatePoints.remove(point);
-		}
 		
 		long newAge = instance.getWorldAge() + tickDelay;
 		updates.computeIfAbsent(newAge, l -> new HashSet<>()).add(point);
-		updatePerPoint.put(point, newAge);
 	}
 	
 	public static void registerWaterlog(Block block, WaterlogHandler handler) {
