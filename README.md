@@ -4,6 +4,7 @@
 [![platform](https://img.shields.io/badge/platform-Minestom-ff69b4?style=flat-square)](https://github.com/Minestom/Minestom)
 
 MinestomFluids is a simple library for Minestom, which adds fluid mechanics.
+It currently supports both water and lava, and also has support for waterlogging.
 
 The maven repository is available on [jitpack](https://jitpack.io/#TogAr2/MinestomFluids).
 
@@ -22,7 +23,15 @@ MinestomFluids.init();
 MinecraftServer.getGlobalEventHandler().addChild(MinestomFluids.events());
 ```
 
-MinestomFluids will call a `WaterBlockBreakEvent` upon breaking a block, which can be cancelled to prevent the action.
+When placing a fluid by code, you should use `instance.placeBlock()` instead of `setBlock()`, because it will cause the block handler of the fluid to trigger. Otherwise, it will not start to flow.
+
+You can register a custom waterlog handler for certain blocks using `MinestomFluids.registerWaterlog(Block, WaterLogHandler)`.
+By default, every waterloggable block has the same handler.
+
+## Events
+
+- `FluidBlockBreakEvent`: called upon breaking a block, which can be cancelled or can be used to set the new fluid state.
+- `LavaSolidifyEvent`: called when lava turns into stone/cobblestone/obsidian when in contact with water. This event can be cancelled or can be used to change the resulting block.
 
 ## Contributing
 

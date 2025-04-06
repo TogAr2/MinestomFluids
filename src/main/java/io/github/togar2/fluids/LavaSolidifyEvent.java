@@ -35,6 +35,7 @@ public class LavaSolidifyEvent implements InstanceEvent, CancellableEvent {
 	
 	/**
 	 * Returns the direction in which the fluid has flown.
+	 * This could be the lava fluid itself (if lava on top of water) or the other fluid (if water on top of or next to lava).
 	 * @return the direction as a BlockFace
 	 */
 	public @NotNull BlockFace getDirection() {

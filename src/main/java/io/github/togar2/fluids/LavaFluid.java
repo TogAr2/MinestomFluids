@@ -2,6 +2,7 @@ package io.github.togar2.fluids;
 
 import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.BlockVec;
+import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
@@ -42,6 +43,7 @@ public class LavaFluid extends FlowableFluid {
 	protected @Nullable FluidState onBreakingBlock(Instance instance, BlockVec point,
 	                                               BlockFace direction, Block block, FluidState newState) {
 		FluidBlockBreakEvent event = new FluidBlockBreakEvent(instance, point, direction, block, newState);
+		EventDispatcher.call(event);
 		if (event.isCancelled()) return null;
 		fizz(instance, point);
 		return event.getNewState();
@@ -79,6 +81,7 @@ public class LavaFluid extends FlowableFluid {
 			FluidState currentState = FluidState.of(instance.getBlock(point));
 			if (currentState.isWater() && newState.isLava()) {
 				LavaSolidifyEvent event = new LavaSolidifyEvent(instance, point, direction, Block.STONE);
+				EventDispatcher.call(event);
 				if (event.isCancelled()) return;
 				
 				instance.setBlock(point, event.getResultingBlock());

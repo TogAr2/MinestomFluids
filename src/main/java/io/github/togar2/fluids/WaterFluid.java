@@ -2,6 +2,7 @@ package io.github.togar2.fluids;
 
 import net.minestom.server.ServerFlag;
 import net.minestom.server.coordinate.BlockVec;
+import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
@@ -22,6 +23,7 @@ public class WaterFluid extends FlowableFluid {
 	protected @Nullable FluidState onBreakingBlock(Instance instance, BlockVec point,
 	                                               BlockFace direction, Block block, FluidState newState) {
 		FluidBlockBreakEvent event = new FluidBlockBreakEvent(instance, point, direction, block, newState);
+		EventDispatcher.call(event);
 		return event.isCancelled() ? null : event.getNewState();
 	}
 	

@@ -1,6 +1,7 @@
 package io.github.togar2.fluids;
 
 import net.minestom.server.coordinate.BlockVec;
+import net.minestom.server.event.EventDispatcher;
 import net.minestom.server.instance.Instance;
 import net.minestom.server.instance.block.Block;
 import net.minestom.server.instance.block.BlockFace;
@@ -50,13 +51,22 @@ public class LavaPlacementRule extends FluidPlacementRule {
 		for (BlockFace direction : FLOW_DIRECTIONS) {
 			FluidState directionState = FluidState.of(instance.getBlock(point.relative(direction.getOppositeFace())));
 			if (directionState.isWater()) {
+				Block block = state.isSource() ? Block.OBSIDIAN : Block.COBBLESTONE;
+				LavaSolidifyEvent event = new LavaSolidifyEvent(instance, point, direction.getOppositeFace(), block);
+				EventDispatcher.call(event);
+				if (event.isCancelled()) continue;
+				
 				LavaFluid.fizz(instance, point);
-				return state.isSource() ? Block.OBSIDIAN : Block.COBBLESTONE;
+				return event.getResultingBlock();
 			}
 			
 			if (soil && directionState.block().compare(Block.BLUE_ICE)) {
+				LavaSolidifyEvent event = new LavaSolidifyEvent(instance, point, direction.getOppositeFace(), Block.BASALT);
+				EventDispatcher.call(event);
+				if (event.isCancelled()) continue;
+				
 				LavaFluid.fizz(instance, point);
-				return Block.BASALT;
+				return event.getResultingBlock();
 			}
 		}
 		
