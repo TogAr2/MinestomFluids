@@ -72,7 +72,7 @@ public abstract class FlowableFluid extends Fluid {
 			
 			BlockVec offset = point.relative(direction);
 			FluidState currentState = FluidState.of(instance.getBlock(offset));
-			if (!canFlowTo(instance, offset, flowing, newState, currentState, direction)) continue;
+			if (preventFlowTo(instance, offset, flowing, newState, currentState, direction)) continue;
 			flow(instance, offset, newState, direction);
 		}
 	}
@@ -112,11 +112,10 @@ public abstract class FlowableFluid extends Fluid {
 			return defaultState.asFlowing(8, true);
 		
 		int newLevel = highestLevel - getLevelDecreasePerBlock(instance);
-		if (newLevel <= 0) return FluidState.of(Block.AIR);
+		if (newLevel <= 0) return MinestomFluids.AIR_STATE;
 		return defaultState.asFlowing(newLevel, false);
 	}
 	
-	@SuppressWarnings("UnstableApiUsage")
 	private boolean receivesFlow(BlockFace face, FluidState from, FluidState to) {
 		// Check if both block faces merged occupy the whole square
 		return !from.block().registry().collisionShape().isOccluded(to.block().registry().collisionShape(), face);
@@ -184,7 +183,7 @@ public abstract class FlowableFluid extends Fluid {
 			FluidState directionState = FluidState.of(instance.getBlock(directionPoint));
 			short id = FlowableFluid.getID(originalPoint, directionPoint);
 			
-			if (!canFlowTo(instance, directionPoint, flowing, defaultState.asFlowing(7, false), directionState, direction))
+			if (preventFlowTo(instance, directionPoint, flowing, defaultState.asFlowing(7, false), directionState, direction))
 				continue;
 			
 			boolean down = short2BooleanMap.computeIfAbsent(id, s -> {
@@ -217,7 +216,7 @@ public abstract class FlowableFluid extends Fluid {
 	 * @return whether this block can hold any fluid
 	 */
 	private boolean canHoldFluid(Block block) {
-		if (MinestomFluids.canBeWaterlogged(block)) return true;
+		if (FluidState.canBeWaterlogged(block)) return true;
 		if (block.isSolid()) return false;
 		
 		TagManager tags = MinecraftServer.getTagManager();
@@ -259,12 +258,12 @@ public abstract class FlowableFluid extends Fluid {
 				&& canHoldFluid(state.block()); // Only flow through when the block can hold fluid
 	}
 	
-	protected boolean canFlowTo(Instance instance, BlockVec flowTo,
-	                            FluidState flowing, FluidState newState, FluidState currentState,
-	                            BlockFace flowFace) {
-		return !isMatchingAndStill(currentState) // Don't flow if matching and still
-				&& receivesFlow(flowFace, flowing, currentState) // Only flow when the path is not obstructed
-				&& canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled with this state
+	protected boolean preventFlowTo(Instance instance, BlockVec flowTo,
+	                                FluidState flowing, FluidState newState, FluidState currentState,
+	                                BlockFace flowFace) {
+		return isMatchingAndStill(currentState) // Don't flow if matching and still
+				|| !receivesFlow(flowFace, flowing, currentState) // Only flow when the path is not obstructed
+				|| !canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled with this state
 	}
 	
 	/**

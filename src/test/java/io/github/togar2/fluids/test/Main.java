@@ -47,13 +47,13 @@ public class Main {
 			} else if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.BUCKET) {
 				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
 				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), FluidState.of(event.getBlock()))) {
-					event.getInstance().setBlock(event.getBlockPosition(), MinestomFluids.setWaterlogged(event.getBlock(), false));
+					event.getInstance().setBlock(event.getBlockPosition(), FluidState.setWaterlogged(event.getBlock(), false));
 				}
 			}
 		});
 		
 		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockBreakEvent.class, event -> {
-			if (MinestomFluids.isWaterlogged(event.getBlock())) {
+			if (FluidState.isWaterlogged(event.getBlock())) {
 				event.setResultBlock(Block.WATER);
 			}
 		});
@@ -61,8 +61,8 @@ public class Main {
 		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockPlaceEvent.class, event -> {
 			Block originalBlock = event.getInstance().getBlock(event.getBlockPosition());
 			Fluid fluid = MinestomFluids.get(originalBlock);
-			if (fluid != MinestomFluids.EMPTY && FluidState.isSource(originalBlock) && MinestomFluids.canBeWaterlogged(event.getBlock())) {
-				event.setBlock(MinestomFluids.setWaterlogged(event.getBlock(), true));
+			if (fluid != MinestomFluids.EMPTY && FluidState.isSource(originalBlock) && FluidState.canBeWaterlogged(event.getBlock())) {
+				event.setBlock(FluidState.setWaterlogged(event.getBlock(), true));
 			}
 		});
 		

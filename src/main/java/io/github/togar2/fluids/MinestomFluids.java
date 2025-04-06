@@ -18,12 +18,14 @@ public class MinestomFluids {
 	public static final Fluid WATER = new WaterFluid();
 	public static final Fluid EMPTY = new EmptyFluid();
 	
+	public static final FluidState AIR_STATE = new FluidState(Block.AIR, EMPTY);
+	
 	private static final Map<Integer, WaterlogHandler> WATERLOG_HANDLERS = new ConcurrentHashMap<>();
 	
 	private static final Tag<Map<Long, Set<BlockVec>>> UPDATES = Tag.Transient("fluid-updates");
 	
 	public static Fluid get(Block block) {
-		if (block.compare(Block.WATER) || isWaterlogged(block)) {
+		if (block.compare(Block.WATER) || FluidState.isWaterlogged(block)) {
 			return WATER;
 		} else if (block.compare(Block.LAVA)) {
 			return EMPTY;
@@ -77,24 +79,11 @@ public class MinestomFluids {
 		return WATERLOG_HANDLERS.get(block.id());
 	}
 	
-	public static boolean canBeWaterlogged(Block block) {
-		return block.properties().containsKey("waterlogged");
-	}
-	
-	public static boolean isWaterlogged(Block block) {
-		String waterlogged = block.getProperty("waterlogged");
-		return waterlogged != null && waterlogged.equals("true");
-	}
-	
-	public static Block setWaterlogged(Block block, boolean waterlogged) {
-		return block.withProperty("waterlogged", waterlogged ? "true" : "false");
-	}
-	
 	public static void init() {
 		MinecraftServer.getBlockManager().registerBlockPlacementRule(new FluidPlacementRule(Block.WATER));
 		
 		for (Block block : Block.values()) {
-			if (canBeWaterlogged(block)) {
+			if (FluidState.canBeWaterlogged(block)) {
 				registerWaterlog(block, WaterlogHandler.DEFAULT);
 				MinecraftServer.getBlockManager().registerBlockPlacementRule(new FluidPlacementRule(block));
 			}

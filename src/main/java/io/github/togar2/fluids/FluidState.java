@@ -19,6 +19,18 @@ public record FluidState(Block block, Fluid fluid) {
 		return isFalling(block);
 	}
 	
+	public boolean canBeWaterLogged() {
+		return canBeWaterlogged(block);
+	}
+	
+	public boolean isWaterlogged() {
+		return isWaterlogged(block);
+	}
+	
+	public FluidState setWaterlogged(boolean waterlogged) {
+		return of(setWaterlogged(block, waterlogged));
+	}
+	
 	public boolean isEmpty() {
 		return fluid.isEmpty();
 	}
@@ -35,18 +47,6 @@ public record FluidState(Block block, Fluid fluid) {
 		return fluid == MinestomFluids.get(other);
 	}
 	
-	public boolean isWaterlogged() {
-		return MinestomFluids.isWaterlogged(block);
-	}
-	
-	public FluidState setWaterlogged(boolean waterlogged) {
-		return FluidState.of(MinestomFluids.setWaterlogged(block, waterlogged));
-	}
-	
-	public WaterlogHandler getWaterlogHandler() {
-		return MinestomFluids.getWaterlog(block);
-	}
-	
 	public FluidState asFlowing(int level, boolean falling) {
 		return new FluidState(block.withProperty("level", String.valueOf((falling ? 8 : 0) + (level == 0 ? 0 : 8 - level))), fluid);
 	}
@@ -56,13 +56,13 @@ public record FluidState(Block block, Fluid fluid) {
 	}
 	
 	public static boolean isSource(Block block) {
-		if (MinestomFluids.isWaterlogged(block)) return true;
+		if (isWaterlogged(block)) return true;
 		String levelStr = block.getProperty("level");
 		return levelStr != null && Integer.parseInt(levelStr) == 0;
 	}
 	
 	public static int getLevel(Block block) {
-		if (MinestomFluids.isWaterlogged(block)) return 8;
+		if (isWaterlogged(block)) return 8;
 		String levelStr = block.getProperty("level");
 		if (levelStr == null) return 0;
 		int level = Integer.parseInt(levelStr);
@@ -74,5 +74,18 @@ public record FluidState(Block block, Fluid fluid) {
 		String levelStr = block.getProperty("level");
 		if (levelStr == null) return false;
 		return Integer.parseInt(levelStr) >= 8;
+	}
+	
+	public static boolean canBeWaterlogged(Block block) {
+		return block.properties().containsKey("waterlogged");
+	}
+	
+	public static boolean isWaterlogged(Block block) {
+		String waterlogged = block.getProperty("waterlogged");
+		return waterlogged != null && waterlogged.equals("true");
+	}
+	
+	public static Block setWaterlogged(Block block, boolean waterlogged) {
+		return block.withProperty("waterlogged", waterlogged ? "true" : "false");
 	}
 }
