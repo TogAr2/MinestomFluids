@@ -32,7 +32,7 @@ public abstract class FlowableFluid extends Fluid {
 				instance.setBlock(point, Block.AIR);
 			} else if (!updated.equals(state)) {
 				state = updated;
-				instance.setBlock(point, updated.block()); // TODO should this be a placement? If it is, the delay will be different
+				instance.setBlock(point, updated.block());
 				MinestomFluids.scheduleTick(instance, point, getNextSpreadDelay(instance, point, state, updated));
 			}
 		}
@@ -295,7 +295,7 @@ public abstract class FlowableFluid extends Fluid {
 	}
 	
 	private boolean isMatchingAndStill(FluidState state) {
-		return state.fluid() == this && state.isSource();
+		return state.fluid() == this && (state.isSource() || state.isFalling());
 	}
 	
 	protected abstract boolean isInfinite();
