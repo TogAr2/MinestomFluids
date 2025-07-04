@@ -103,7 +103,7 @@ public abstract class FlowableFluid extends Fluid {
 			// If there's 2 or more still fluid blocks around
 			// and below is still or a solid block, make this block still
 			Block downBlock = instance.getBlock(point.add(0, -1, 0));
-			if (downBlock.isSolid() || isMatchingAndStill(FluidState.of(downBlock))) {
+			if (downBlock.isSolid() || isMatchingSource(FluidState.of(downBlock))) {
 				return defaultState.asSource(false);
 			}
 		}
@@ -208,7 +208,7 @@ public abstract class FlowableFluid extends Fluid {
 		for (Direction direction : Direction.HORIZONTAL) {
 			BlockVec currentPoint = point.add(direction.normalX(), direction.normalY(), direction.normalZ());
 			Block block = instance.getBlock(currentPoint);
-			if (!isMatchingAndStill(FluidState.of(block))) continue;
+			if (!isMatchingSource(FluidState.of(block))) continue;
 			++i;
 		}
 		return i;
@@ -255,7 +255,7 @@ public abstract class FlowableFluid extends Fluid {
 	
 	private boolean canMaybeFlowThrough(FluidState flowing, FluidState state,
 	                                    BlockFace face) {
-		return !isMatchingAndStill(state) // Don't flow through if matching and still
+		return !isMatchingSource(state) // Don't flow through if matching source
 				&& receivesFlow(face, flowing, state) // Only flow through when the path is not obstructed
 				&& canHoldFluid(state.block()); // Only flow through when the block can hold fluid
 	}
@@ -263,7 +263,7 @@ public abstract class FlowableFluid extends Fluid {
 	protected boolean preventFlowTo(Instance instance, BlockVec flowTo,
 	                                FluidState flowing, FluidState newState, FluidState currentState,
 	                                BlockFace flowFace) {
-		return isMatchingAndStill(currentState) // Don't flow if matching and still
+		return isMatchingSource(currentState) // Don't flow if matching source
 				|| !receivesFlow(flowFace, flowing, currentState) // Only flow when the path is not obstructed
 				|| !canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled with this state
 	}
@@ -294,8 +294,8 @@ public abstract class FlowableFluid extends Fluid {
 		}
 	}
 	
-	private boolean isMatchingAndStill(FluidState state) {
-		return state.fluid() == this && (state.isSource() || state.isFalling());
+	private boolean isMatchingSource(FluidState state) {
+		return state.fluid() == this && state.isSource();
 	}
 	
 	protected abstract boolean isInfinite();

@@ -34,7 +34,7 @@ public class Main {
 			event.getPlayer().setRespawnPoint(spawn);
 			event.getPlayer().setGameMode(GameMode.CREATIVE);
 		});
-		
+
 		MinecraftServer.getGlobalEventHandler().addListener(PlayerBlockInteractEvent.class, event -> {
 			if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.WATER_BUCKET) {
 				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
@@ -48,6 +48,10 @@ public class Main {
 				WaterlogHandler handler = MinestomFluids.getWaterlog(event.getBlock());
 				if (handler != null && handler.canRemoveFluid(instance, event.getBlockPosition(), FluidState.of(event.getBlock()))) {
 					event.getInstance().setBlock(event.getBlockPosition(), FluidState.setWaterlogged(event.getBlock(), false));
+				} else if (event.getBlock().isLiquid()) {
+					FluidState state = FluidState.of(event.getBlock());
+					event.getPlayer().setItemInHand(event.getHand(), state.fluid().getBucket());
+					event.getInstance().setBlock(event.getBlockPosition(), Block.AIR);
 				}
 			} else if (event.getPlayer().getItemInHand(event.getHand()).material() == Material.LAVA_BUCKET) {
 				event.getInstance().placeBlock(new BlockHandler.Placement(
