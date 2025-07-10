@@ -1,6 +1,6 @@
 # MinestomFluids
 
-[![license](https://img.shields.io/github/license/TogAr2/MinestomFluids.svg?style=flat-square)](LICENSE)
+[![license](https://img.shields.io/github/license/TogAr2/MinestomFluids.svg?style=flat-square)](../../LICENSE)
 [![platform](https://img.shields.io/badge/platform-Minestom-ff69b4?style=flat-square)](https://github.com/Minestom/Minestom)
 
 MinestomFluids is a simple library for Minestom, which adds fluid mechanics.
