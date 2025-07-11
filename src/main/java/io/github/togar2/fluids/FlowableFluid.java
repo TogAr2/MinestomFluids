@@ -53,10 +53,13 @@ public abstract class FlowableFluid extends Fluid {
 
 				if (getAdjacentSourceCount(instance, point) >= 3)
 					flowSides(instance, point, state);
+
+				return;
 			}
-		} else if (state.isSource() || !isWaterHole(instance, state, down)) {
-			flowSides(instance, point, state);
 		}
+
+		if (state.isSource() || !isWaterHole(instance, state, down))
+			flowSides(instance, point, state);
 	}
 
 	/**
@@ -92,7 +95,7 @@ public abstract class FlowableFluid extends Fluid {
 
 		for (BlockFace face : HORIZONTAL) {
 			FluidState directionState = FluidState.of(instance.getBlock(point.relative(face)));
-			if (directionState.fluid() != this || !receivesFlow(face, original, directionState))
+			if (directionState.fluid() != this || !canPassTrough(face, original, directionState))
 				continue;
 
 			if (directionState.isSource()) stillCount++;
@@ -110,7 +113,7 @@ public abstract class FlowableFluid extends Fluid {
 
 		BlockVec above = point.add(0, 1, 0);
 		FluidState aboveState = FluidState.of(instance.getBlock(above));
-		if (!aboveState.isEmpty() && aboveState.fluid() == this && receivesFlow(BlockFace.TOP, original, aboveState))
+		if (!aboveState.isEmpty() && aboveState.fluid() == this && canPassTrough(BlockFace.TOP, original, aboveState))
 			return defaultState.asFlowing(8, true);
 
 		int newLevel = highestLevel - getLevelDecreasePerBlock(instance);
@@ -118,7 +121,7 @@ public abstract class FlowableFluid extends Fluid {
 		return defaultState.asFlowing(newLevel, false);
 	}
 
-	private boolean receivesFlow(BlockFace face, FluidState from, FluidState to) {
+	private boolean canPassTrough(BlockFace face, FluidState from, FluidState to) {
 		// Check if both block faces merged occupy the whole square
 		return !from.block().registry().collisionShape().isOccluded(to.block().registry().collisionShape(), face);
 	}
@@ -249,7 +252,7 @@ public abstract class FlowableFluid extends Fluid {
 	 */
 	private boolean isWaterHole(Instance instance, FluidState flowing, BlockVec flowTo) {
 		FluidState flowToState = FluidState.of(instance.getBlock(flowTo));
-		if (!receivesFlow(BlockFace.BOTTOM, flowing, flowToState)) return false; // Don't flow down if the path is obstructed
+		if (!canPassTrough(BlockFace.BOTTOM, flowing, flowToState)) return false; // Don't flow down if the path is obstructed
 		if (flowing.sameFluid(flowToState)) return true; // Always flow down when the fluid is the same
 		return canFill(instance, flowTo, flowToState.block(), flowing); // Flow down when the block beneath can be filled
 	}
@@ -257,7 +260,7 @@ public abstract class FlowableFluid extends Fluid {
 	private boolean canMaybeFlowThrough(FluidState flowing, FluidState state,
 	                                    BlockFace face) {
 		return !isMatchingSource(state) // Don't flow through if matching source
-				&& receivesFlow(face, flowing, state) // Only flow through when the path is not obstructed
+				&& canPassTrough(face, flowing, state) // Only flow through when the path is not obstructed
 				&& canHoldFluid(state.block()); // Only flow through when the block can hold fluid
 	}
 
@@ -265,7 +268,7 @@ public abstract class FlowableFluid extends Fluid {
 	                                FluidState flowing, FluidState newState, FluidState currentState,
 	                                BlockFace flowFace) {
 		return isMatchingSource(currentState) // Don't flow if matching source
-				|| !receivesFlow(flowFace, flowing, currentState) // Only flow when the path is not obstructed
+				|| !canPassTrough(flowFace, flowing, currentState) // Only flow when the path is not obstructed
 				|| !canFill(instance, flowTo, currentState.block(), newState); // Only flow when the block can be filled with this state
 	}
 
